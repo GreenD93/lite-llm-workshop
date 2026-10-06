@@ -1,0 +1,53 @@
+# LiteLLM Gateway 설정.
+#
+# model_name   = 클라이언트(Claude Code·Codex·OpenCode)가 보는 이름. 워크샵과 같은 이름을 쓴다.
+# litellm_params.model = 실제 백엔드. 로컬 재현이라 전부 호스트 Ollama(qwen3:4b)로 보낸다.
+#   → 클라이언트 설정을 바꾸지 않고 백엔드만 갈아끼울 수 있다는 게 게이트웨이의 핵심이다.
+#   → Bedrock을 쓸 수 있는 환경에서는 README "Bedrock으로 전환" 표대로 model만 바꾸고 단가 두 줄을 지운다.
+#
+# 단가(input/output_cost_per_token): 로컬 모델은 비용이 0이라 예산·지출 실습이 성립하지 않는다.
+#   LiteLLM 1.104.0 내장 가격표(model_prices_and_context_window)의 Bedrock 단가를 그대로 넣었다.
+model_list:
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: ollama_chat/qwen3:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      input_cost_per_token: 0.000002     # global.anthropic.claude-sonnet-5
+      output_cost_per_token: 0.00001
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: ollama_chat/qwen3:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      input_cost_per_token: 0.000001     # global.anthropic.claude-haiku-4-5-20251001-v1:0
+      output_cost_per_token: 0.000005
+
+  - model_name: gpt-5.6-sol
+    litellm_params:
+      model: ollama_chat/qwen3:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      input_cost_per_token: 0.000004     # global.openai.gpt-5.6-sol
+      output_cost_per_token: 0.00002
+
+  - model_name: qwen3-coder
+    litellm_params:
+      model: ollama_chat/qwen3:4b
+      api_base: os.environ/OLLAMA_API_BASE
+      input_cost_per_token: 0.0000005    # bedrock/us-east-1/qwen.qwen3-coder-next
+      output_cost_per_token: 0.0000012
+
+# 모듈 5-3: 게이트웨이 프로세스 안에서 도는 커스텀 가드레일. 모든 요청에 기본 적용.
+guardrails:
+  - guardrail_name: kr-pii-mask
+    litellm_params:
+      guardrail: pii_filter.PiiMaskingGuardrail
+      mode: pre_call
+      default_on: true
+
+litellm_settings:
+  drop_params: true          # 백엔드가 모르는 파라미터(Claude Code의 thinking 등)는 버리고 보낸다.
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_prompts_in_spend_logs: true   # 모듈 5-1: 프롬프트·응답 감사 로그

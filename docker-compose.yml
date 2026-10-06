@@ -1,0 +1,85 @@
+# 워크샵 아키텍처의 로컬 재현.
+#   CloudFront → gateway(nginx) / EC2 컨테이너 → litellm·broker / Aurora → postgres
+#   Bedrock(PrivateLink) → 호스트 Ollama
+# LiteLLM과 broker는 포트를 열지 않는다. 외부 진입점은 gateway·keycloak 둘뿐이다.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: litellm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 5s
+      retries: 20
+
+  keycloak:
+    image: ${KEYCLOAK_IMAGE}
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # 토큰 iss를 외부 URL로 고정한다. 컨테이너 내부(broker)에서 keycloak:8080으로 접근해도 동작하게 backchannel은 동적.
+      KC_HOSTNAME: ${KEYCLOAK_URL}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-workshop.json:/opt/keycloak/data/import/realm-workshop.json:ro
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      retries: 40
+
+  litellm:
+    image: ${LITELLM_IMAGE}
+    command: ["--config", "/app/config/config.yaml", "--port", "4000"]
+    environment:
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD}@postgres:5432/litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE}
+      STORE_MODEL_IN_DB: "True"
+    volumes:
+      - ./litellm:/app/config:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness')\""]
+      interval: 5s
+      retries: 60
+
+  broker:
+    build: ./broker
+    environment:
+      KEYCLOAK_ISSUER: ${KEYCLOAK_URL}/realms/workshop
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/realms/workshop/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: workshop-cli
+      KEY_DURATION: ${KEY_DURATION}
+      LITELLM_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+
+  gateway:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${GATEWAY_PORT}:80"
+    depends_on:
+      - litellm
+      - broker
+
+volumes:
+  pgdata:

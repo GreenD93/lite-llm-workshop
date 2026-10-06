@@ -1,0 +1,46 @@
+{
+  "realm": "workshop",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 86400,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "clients": [
+    {
+      "clientId": "workshop-cli",
+      "name": "Workshop AI Coding CLI",
+      "description": "gateway-login.sh가 Device Grant로 로그인하는 public client. broker는 azp가 이 값인 토큰만 받는다.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "consentRequired": false,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "developer001",
+      "email": "developer001@example.com",
+      "emailVerified": true,
+      "firstName": "Developer",
+      "lastName": "One",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Workshop123!", "temporary": false }]
+    },
+    {
+      "username": "developer002",
+      "email": "developer002@example.com",
+      "emailVerified": true,
+      "firstName": "Developer",
+      "lastName": "Two",
+      "enabled": true,
+      "credentials": [{ "type": "password", "value": "Workshop123!", "temporary": false }]
+    }
+  ]
+}

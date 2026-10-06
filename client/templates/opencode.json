@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "litellm/qwen3-coder",
+  "provider": {
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Workshop LiteLLM Gateway",
+      "options": {
+        "baseURL": "__GATEWAY_URL__/v1",
+        "apiKey": "{file:~/.gateway/virtual-key}"
+      },
+      "models": {
+        "qwen3-coder": { "name": "Qwen3 Coder (via Gateway)" },
+        "claude-sonnet-5": { "name": "Claude Sonnet 5 (via Gateway)" }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+model = "gpt-5.6-sol"
+model_provider = "litellm"
+
+[model_providers.litellm]
+name = "Workshop LiteLLM Gateway"
+base_url = "__GATEWAY_URL__/v1"
+wire_api = "responses"
+request_max_retries = 2
+stream_max_retries = 2
+stream_idle_timeout_ms = 600000
+
+[model_providers.litellm.auth]
+command = "__DEV_HOME__/bin/get-gateway-key.sh"
+timeout_ms = 10000
+
+[projects."__DEV_HOME__/project"]
+trust_level = "trusted"
